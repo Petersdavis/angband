@@ -21,7 +21,6 @@
 #include "cmd-core.h"
 #include "game-input.h"
 #include "mon-desc.h"
-#include "mon-predicate.h"
 #include "mon-util.h"
 #include "monster.h"
 #include "obj-ignore.h"
@@ -415,7 +414,7 @@ bool target_sighted(void)
 /**
  * Return a target set of target_able monsters.
  */
-struct point_set *target_get_monsters(int mode)
+struct point_set *target_get_monsters(int mode, monster_predicate pred)
 {
 	int y, x;
 	int min_y, min_x, max_y, max_x;
@@ -435,11 +434,16 @@ struct point_set *target_get_monsters(int mode)
 
 			/* Special mode */
 			if (mode & (TARGET_KILL)) {
+				struct monster *mon = square_monster(cave, y, x);
+
 				/* Must contain a monster */
-				if (!(cave->squares[y][x].mon > 0)) continue;
+				if (mon == NULL) continue;
 
 				/* Must be a targettable monster */
-			 	if (!target_able(square_monster(cave, y, x))) continue;
+				if (!target_able(mon)) continue;
+
+				/* Must be the right sort of monster */
+				if (pred && !pred(mon)) continue;
 			}
 
 			/* Save the location */
@@ -456,7 +460,7 @@ struct point_set *target_get_monsters(int mode)
 /**
  * Set target to closest monster.
  */
-bool target_set_closest(int mode)
+bool target_set_closest(int mode, monster_predicate pred)
 {
 	int y, x;
 	struct monster *mon;
@@ -467,7 +471,7 @@ bool target_set_closest(int mode)
 	target_set_monster(0);
 
 	/* Get ready to do targetting */
-	targets = target_get_monsters(mode);
+	targets = target_get_monsters(mode, pred);
 
 	/* If nothing was prepared, then return */
 	if (point_set_size(targets) < 1) {
